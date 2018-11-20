@@ -13,15 +13,27 @@ VK_PASSWORD = os.getenv('VK_PASSWORD')
 
 MOM_VK_ID = 187_822_398
 
+# Количество проверок подключения для надёжности.
+RETRIES = 3
+
 NAMES_TO_MAC_AND_CUTIES = {
-    'vitaly': ('f4:f5:db:c8:09:b1', ['Виталик']),
+    'vitaly': (
+        'f4:f5:db:c8:09:b1',
+        [
+            'Виталик',
+            'Джентльмен',
+            'Кулхацкер',
+            'Добрый сэр',
+            'Богатырь всея Руси',
+            'Тальсергеич',
+        ],
+    ),
     'veva': (
         'f0:76:6f:a2:38:ef',
         [
             'Биба',
             'Капуста',
             'Суслик',
-            'Капуста',
             'Батутик',
             'Ушастик',
             'Припузинка',
@@ -32,6 +44,12 @@ NAMES_TO_MAC_AND_CUTIES = {
         ],
     ),
 }
+
+
+COMES_BACK = ['возвращается домой']
+GONE_OUT = ['свалил навстречу приключениям']
+AT_HOME = ['пьёт дома какавушку', 'читает книжку в кроватке', 'собирается помыть полы']
+OUTSIDE = ['где-то шлындает']
 
 
 def telnet_login():
@@ -62,12 +80,17 @@ def send_notification(vk, name, old_state, new_state):
         return
 
     if old_state == False and new_state == True:
-        message = f'{cutie} вернулся домой :)'
+        comes_back = random.choice(COMES_BACK)
+        message = f'{cutie} {comes_back}.'
     elif old_state == True and new_state == False:
-        message = f'{cutie} куда-то попёрся...'
+        gone_out = random.choice(GONE_OUT)
+        message = f'{cutie} {gone_out}.'
     elif old_state == None:
-        message = f'{cutie} дома.' if new_state else f'{cutie} где-то шлындает.'
-    vk.messages.send(message=message, user_id=MOM_VK_ID)
+        at_home = random.choice(AT_HOME)
+        outside = random.choice(OUTSIDE)
+        message = f'{cutie} {at_home}.' if new_state else f'{cutie} {outside}.'
+    print(message)
+    # vk.messages.send(message=message, user_id=MOM_VK_ID)
 
 
 def main():
@@ -75,10 +98,13 @@ def main():
     telnet = telnet_login()
     athome = {name: None for name in NAMES_TO_MAC_AND_CUTIES}
     while True:
-        associations = show_associations(telnet)
+        associations_tries = [f(telnet) for f in [show_associations] * RETRIES]
         for name in NAMES_TO_MAC_AND_CUTIES:
             old_state = athome[name]
-            new_state = NAMES_TO_MAC_AND_CUTIES[name][0] in associations
+            new_state = any(
+                NAMES_TO_MAC_AND_CUTIES[name][0] in associations
+                for associations in associations_tries
+            )
             send_notification(vk, name, old_state, new_state)
             athome[name] = new_state
         sleep(5)
