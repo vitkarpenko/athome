@@ -1,6 +1,7 @@
 import os
 import random
 import telnetlib
+from datetime import datetime
 from time import sleep
 
 import vk_api
@@ -12,6 +13,9 @@ VK_LOGIN = os.getenv('VK_LOGIN')
 VK_PASSWORD = os.getenv('VK_PASSWORD')
 
 MOM_VK_ID = 187_822_398
+
+# Сколько ждать перед считыванием подключенных устройств.
+TIMEOUT = 1
 
 # Количество проверок подключения для надёжности.
 RETRIES = 3
@@ -60,8 +64,21 @@ NAMES_TO_MAC_AND_CUTIES = {
 }
 
 
-COMES_BACK = ['возвращается домой']
-GONE_OUT = ['свалил навстречу приключениям']
+COMES_BACK = [
+    'возвращается домой',
+    'снимает ботинки',
+    'вешает куртку',
+    'кричит "Дом! Милый дом!"',
+    'залезает под одеялко',
+    'дома',
+    'релаксируется',
+]
+GONE_OUT = [
+    'сваливает навстречу приключениям',
+    'куда-то уходит',
+    'зачем-то выходит из квартирки',
+    'идёт на работу или на пары',
+]
 AT_HOME = [
     'пьёт дома какавушку',
     'читает книжку в кроватке',
@@ -69,7 +86,17 @@ AT_HOME = [
     'валяется на диване',
     'смотрит телевизор',
 ]
-OUTSIDE = ['где-то шлындает', 'шляется по барам']
+OUTSIDE = [
+    'где-то шлындает',
+    'шляется по барам',
+    'работает, наверное',
+    'возможно на парах',
+    'кажись, в магазине?',
+]
+
+
+def is_day():
+    return 7 <= datetime.now().hour <= 22
 
 
 def telnet_login():
@@ -89,7 +116,7 @@ def vk_login():
 
 def show_associations(telnet):
     telnet.write(b"show associations\n")
-    sleep(1)
+    sleep(TIMEOUT)
     return telnet.read_very_eager().decode()
 
 
@@ -109,8 +136,9 @@ def send_notification(vk, name, old_state, new_state):
         at_home = random.choice(AT_HOME)
         outside = random.choice(OUTSIDE)
         message = f'{cutie} {at_home}.' if new_state else f'{cutie} {outside}.'
-    print(message)
-    # vk.messages.send(message=message, user_id=MOM_VK_ID)
+    message = '[Хранитель очага]: ' + message
+    if is_day():
+        vk.messages.send(message=message, user_id=MOM_VK_ID)
 
 
 def main():
@@ -127,7 +155,7 @@ def main():
             )
             send_notification(vk, name, old_state, new_state)
             athome[name] = new_state
-        sleep(5)
+        sleep(TIMEOUT * RETRIES * 3)
 
 
 if __name__ == "__main__":
